@@ -45,6 +45,8 @@ test('GET /api/info reports runtime metadata', withServer(async (base) => {
   const body = await res.json();
   assert.strictEqual(body.version, require('./package.json').version);
   assert.match(body.node, /^v\d+/);
+  assert.ok(Object.hasOwn(body, 'commit'), 'info must report the commit it was built from');
+  assert.ok(Object.hasOwn(body, 'buildId'));
   assert.ok(typeof body.uptimeSeconds === 'number');
 }));
 

@@ -28,6 +28,8 @@ const SIMULATABLE = Object.keys(STATUS_TEXT).map(Number);
 function meta() {
   return {
     version: pkg.version,
+    commit: process.env.COMMIT_SHA || 'local',
+    buildId: process.env.BUILD_ID || 'local',
     revision: process.env.K_REVISION || 'local',
     service: process.env.K_SERVICE || 'demo-project',
     region: process.env.APP_REGION || 'local',

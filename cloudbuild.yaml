@@ -63,7 +63,10 @@ steps:
       - '--cpu=${_CPU}'
       - '--concurrency=80'
       - '--timeout=60s'
-      - '--set-env-vars=BREAK_HEALTH=${_BREAK_HEALTH},APP_REGION=${_REGION}'
+      - '--set-env-vars=BREAK_HEALTH=${_BREAK_HEALTH},APP_REGION=${_REGION},COMMIT_SHA=${SHORT_SHA},BUILD_ID=${BUILD_ID}'
+      # Labels make the commit queryable on the revision itself, without
+      # colliding the way --revision-suffix does when one commit deploys twice.
+      - '--labels=commit-sha=${SHORT_SHA}'
       # No --tag, so the new revision takes 100% of traffic immediately.
 
 # Required when a build runs as a user-specified service account.

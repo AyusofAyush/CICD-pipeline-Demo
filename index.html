@@ -105,6 +105,7 @@
       <span class="badge">Artifact Registry</span>
       <span class="badge">Cloud Run</span>
       <span class="badge" id="bRev">revision: loading</span>
+      <span class="badge" id="bCommit">commit: loading</span>
     </div>
   </div>
 </div>
@@ -116,6 +117,7 @@
     <div class="grid">
       <div class="stat"><div class="k">Version</div><div class="v" id="v">-</div></div>
       <div class="stat"><div class="k">Revision</div><div class="v" id="r">-</div></div>
+      <div class="stat"><div class="k">Commit</div><div class="v" id="c">-</div></div>
       <div class="stat"><div class="k">Region</div><div class="v" id="rg">-</div></div>
       <div class="stat"><div class="k">Uptime</div><div class="v" id="u">-</div></div>
       <div class="stat"><div class="k">Node</div><div class="v" id="n">-</div></div>
@@ -232,11 +234,13 @@ async function load() {
     const i = await (await fetch('/api/info')).json();
     $('v').textContent  = i.version;
     $('r').textContent  = i.revision;
+    $('c').textContent  = i.commit;
     $('rg').textContent = i.region;
     $('u').textContent  = i.uptimeSeconds + 's';
     $('n').textContent  = i.node;
     $('e').textContent  = i.env;
     $('bRev').textContent = 'revision: ' + i.revision;
+    $('bCommit').textContent = 'commit: ' + i.commit;
   } catch (err) { /* keep placeholders */ }
 
   loadItems();
