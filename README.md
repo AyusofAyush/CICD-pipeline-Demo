@@ -341,6 +341,85 @@ seconds, not a pipeline run measured in minutes.
 
 ---
 
+## 6a. Rollback options
+
+Four ways to undo a bad deploy, fastest first. All four work because the image for every
+commit is already sitting in Artifact Registry, tagged with its commit SHA.
+
+| # | Method | Speed | Rebuild? | Use when |
+|---|---|---|---|---|
+| 1 | **Traffic shift** to an existing revision | ~5 s | No | Production is on fire. This is `rollback.sh`. |
+| 2 | **Redeploy an older image** by commit SHA | ~30 s | No | The old revision was deleted, or you want a fresh container |
+| 3 | **Gradual traffic split** (canary in reverse) | ~5 s | No | You want to bleed traffic off rather than cut it |
+| 4 | **`git revert` + push** | ~2-3 min | Yes | The permanent fix - git history stays the source of truth |
+
+### 1. Traffic shift (instant, the one to demo)
+```bash
+./rollback.sh                 # interactive: lists revisions, you pick
+./rollback.sh --to-previous   # no prompt, jumps to the previous revision
+./rollback.sh demo-project-00004-abc
+```
+Under the hood it is one command:
+```bash
+gcloud run services update-traffic demo-project \
+  --region asia-south1 --to-revisions demo-project-00004-abc=100
+```
+
+### 2. Redeploy an older image by commit SHA
+```bash
+gcloud artifacts docker tags list \
+  asia-south1-docker.pkg.dev/$PROJECT_ID/demo-project/demo-project
+
+gcloud run deploy demo-project --region asia-south1 \
+  --image asia-south1-docker.pkg.dev/$PROJECT_ID/demo-project/demo-project:<OLD_SHA>
+```
+
+### 3. Gradual split
+```bash
+gcloud run services update-traffic demo-project --region asia-south1 \
+  --to-revisions demo-project-00004-abc=90,demo-project-00005-def=10
+```
+
+### 4. git revert (the permanent fix)
+```bash
+git revert HEAD --no-edit && git push
+```
+
+### Showing the version actually changed
+
+Each deploy stamps the commit in two places, so rollback is visible without guesswork:
+
+- **In the container** - `COMMIT_SHA` env var, returned by `/api/info` as `commit` and shown on
+  the dashboard, in the hero badge and the stat grid.
+- **On the revision** - a `commit-sha` label, so `rollback.sh` prints a COMMIT column and you can
+  query it:
+  ```bash
+  gcloud run revisions list --service demo-project --region asia-south1 \
+    --format='table(metadata.name, metadata.labels.commit-sha, status.conditions[0].status)'
+  ```
+
+Side-by-side proof during the demo:
+```bash
+URL=$(gcloud run services describe demo-project --region asia-south1 --format='value(status.url)')
+curl -s $URL/api/info | jq '{commit, revision, version}'   # before
+./rollback.sh --to-previous
+curl -s $URL/api/info | jq '{commit, revision, version}'   # after - commit has changed
+```
+Then open `$URL` in a browser: the hero badge shows the rolled-back commit, live.
+
+### Why there is no GitHub Action here
+
+Deployment is driven entirely by **Cloud Build triggers**, not GitHub Actions - there is no
+`.github/workflows/` directory in this repo. A GitHub Action would need its own credentials to
+reach GCP, via **Workload Identity Federation** (the right way - no long-lived keys) or a service
+account JSON key in a GitHub secret (avoid: a long-lived credential in a third party).
+
+Cloud Build already has an identity, so it needs none of that. If you do want rollback driven from
+the GitHub UI, the cleanest option is a `workflow_dispatch` workflow that authenticates via WIF and
+runs the same `update-traffic` command - see the note in section 7.
+
+---
+
 ## 7. Troubleshooting (the three that actually bite during a demo)
 
 ### A. Image push fails — `denied: Permission "artifactregistry.repositories.uploadArtifacts" denied`
