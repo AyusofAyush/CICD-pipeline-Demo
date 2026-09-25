@@ -6,3 +6,4 @@ npm-debug.log
 README.md
 cloudbuild*.yaml
 *.sh
+postman_*.json

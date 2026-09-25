@@ -1,0 +1,1181 @@
+{
+  "info": {
+    "name": "demo-project API",
+    "description": "Every endpoint of the Cloud Run demo service, with assertions.\n\nSet {{baseUrl}} to either http://localhost:8080 (local) or your Cloud Run URL:\n  gcloud run services describe demo-project --region asia-south1 --format='value(status.url)'\n\nThe folders are ordered so a top-to-bottom run leaves the service healthy: Break mode is enabled and then recovered within its own folder.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health & info",
+      "item": [
+        {
+          "name": "Dashboard (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            },
+            "description": "The demo page. Renders itself from the API below."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"is HTML\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"text/html\"));",
+                  "pm.test(\"has title\", () => pm.expect(pm.response.text()).to.include(\"<title>demo-project</title>\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "200 normally; 500 when BREAK_HEALTH=true (rollback demo)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"status ok\", () => pm.expect(b.status).to.eql(\"ok\"));",
+                  "pm.test(\"has version\", () => pm.expect(b.version).to.match(/^\\d+\\.\\d+\\.\\d+$/));",
+                  "pm.test(\"timestamp parses\", () => pm.expect(Date.parse(b.timestamp)).to.not.be.NaN);",
+                  "pm.collectionVariables.set(\"revision\", b.revision);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Service info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "info"
+              ]
+            },
+            "description": "Version, revision, region, uptime, node version, env."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"node version present\", () => pm.expect(b.node).to.match(/^v\\d+/));",
+                  "pm.test(\"uptime is a number\", () => pm.expect(b.uptimeSeconds).to.be.a(\"number\"));",
+                  "console.log(\"revision:\", b.revision, \"| region:\", b.region);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Items & echo",
+      "item": [
+        {
+          "name": "List items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items"
+              ]
+            },
+            "description": "All items plus a count."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"count matches array\", () => pm.expect(b.count).to.eql(b.items.length));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get item 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/items/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items",
+                "1"
+              ]
+            },
+            "description": "A single seeded item."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get missing item (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/items/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items",
+                "999"
+              ]
+            },
+            "description": "Expect a 404 with a JSON error."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"has error\", () => pm.expect(pm.response.json().error).to.eql(\"not found\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items"
+              ]
+            },
+            "description": "Creates an item and saves its id as {{itemId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"from postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"name echoed\", () => pm.expect(b.name).to.eql(\"from postman\"));",
+                  "pm.test(\"starts not done\", () => pm.expect(b.done).to.be.false);",
+                  "pm.collectionVariables.set(\"itemId\", b.id);",
+                  "console.log(\"created item id:\", b.id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get created item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items",
+                "{{itemId}}"
+              ]
+            },
+            "description": "Fetches the item created above."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"id matches\", () => pm.expect(String(pm.response.json().id)).to.eql(String(pm.collectionVariables.get(\"itemId\"))));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create item - missing name (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items"
+              ]
+            },
+            "description": "Validation failure.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"explains why\", () => pm.expect(pm.response.json().error).to.eql(\"name is required\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete created item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items",
+                "{{itemId}}"
+              ]
+            },
+            "description": "204 No Content."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete again (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items",
+                "{{itemId}}"
+              ]
+            },
+            "description": "Already gone."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Echo query string",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/echo?msg=hi&n=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "echo"
+              ],
+              "query": [
+                {
+                  "key": "msg",
+                  "value": "hi"
+                },
+                {
+                  "key": "n",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "Reflects the query params back."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"echoes params\", () => pm.expect(pm.response.json().youSent).to.deep.include({ msg: \"hi\", n: \"2\" }));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Error simulation (one-off)",
+      "item": [
+        {
+          "name": "Error shorthand (500)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/error",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "error"
+              ]
+            },
+            "description": "Always 500."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 500\", () => pm.response.to.have.status(500));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/400",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "400"
+              ]
+            },
+            "description": "Returns exactly 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/401",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "401"
+              ]
+            },
+            "description": "Returns exactly 401."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/403",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "403"
+              ]
+            },
+            "description": "Returns exactly 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/404",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "404"
+              ]
+            },
+            "description": "Returns exactly 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 409",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/409",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "409"
+              ]
+            },
+            "description": "Returns exactly 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 422",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/422",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "422"
+              ]
+            },
+            "description": "Returns exactly 422."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 429",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/429",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "429"
+              ]
+            },
+            "description": "Returns exactly 429."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 429\", () => pm.response.to.have.status(429));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 500",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "500"
+              ]
+            },
+            "description": "Returns exactly 500."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 500\", () => pm.response.to.have.status(500));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 502",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/502",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "502"
+              ]
+            },
+            "description": "Returns exactly 502."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 502\", () => pm.response.to.have.status(502));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 503",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/503",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "503"
+              ]
+            },
+            "description": "Returns exactly 503."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 503\", () => pm.response.to.have.status(503));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate 504",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/504",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "504"
+              ]
+            },
+            "description": "Returns exactly 504."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 504\", () => pm.response.to.have.status(504));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"marked simulated\", () => pm.expect(b.simulated).to.be.true);",
+                  "pm.test(\"statusText present\", () => pm.expect(b.statusText).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Simulate invalid code (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "abc"
+              ]
+            },
+            "description": "Validation: code must be an integer 100-599."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"lists simulatable\", () => pm.expect(pm.response.json().simulatable).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Break mode (sticky)",
+      "item": [
+        {
+          "name": "Break state",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/break",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "break"
+              ]
+            },
+            "description": "Current sticky-failure state."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"has broken flag\", () => pm.expect(pm.response.json()).to.have.property(\"broken\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Enable break mode (502)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/break",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "break"
+              ]
+            },
+            "description": "Sticky: every data endpoint now returns 502 until recovered.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": 502\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"broken\", () => pm.expect(b.broken).to.be.true);",
+                  "pm.test(\"code is 502\", () => pm.expect(b.code).to.eql(502));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Items while broken (502)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items"
+              ]
+            },
+            "description": "Proves break mode is in effect."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 502\", () => pm.response.to.have.status(502));",
+                  "pm.test(\"breakMode flagged\", () => pm.expect(pm.response.json().breakMode).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Health stays up while broken",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Health is deliberately exempt so Cloud Run does not kill the container."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Break with unsupported code (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/break",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "break"
+              ]
+            },
+            "description": "Rejects codes outside the list.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": 123\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Recover",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/break",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "break"
+              ]
+            },
+            "description": "Back to normal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"not broken\", () => pm.expect(pm.response.json().broken).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Items after recovery (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "items"
+              ]
+            },
+            "description": "Confirms recovery."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Misc",
+      "item": [
+        {
+          "name": "Unknown route (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nope",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nope"
+              ]
+            },
+            "description": "JSON 404 fallback."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"has error\", () => pm.expect(pm.response.json().error).to.eql(\"route not found\"));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "itemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "revision",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

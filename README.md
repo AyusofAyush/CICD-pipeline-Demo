@@ -53,7 +53,9 @@ Cloud Logging needs no setup — Cloud Run pipes stdout/stderr to it automatical
 | `cloudbuild.yaml` | Main pipeline: test → build → push → deploy. Fully parameterised. |
 | `setup-gcp.sh` | One-shot provisioning. Idempotent, pauses for the GitHub App step. |
 | `rollback.sh` | Lists revisions, shifts 100% traffic to the one you pick. |
-| `.env.example` | Every environment-specific value. **No project IDs are committed.** |
+| `postman_collection.json` | 33 requests covering every endpoint, with 76 assertions |
+| `postman_environment.json` | Postman environment - paste your Cloud Run URL into `baseUrl` |
+| `.env.example` | Every environment-specific value |
 
 ---
 
@@ -108,6 +110,46 @@ Responses at `4xx` log as `WARNING`, `5xx` as `ERROR`, so they are filterable in
 
 > Use `BREAK_HEALTH=true` (not break mode) for the rollback demo in section 6 - that one breaks
 > `/health` itself, which is what makes the revision genuinely bad.
+
+### Postman
+
+`postman_collection.json` covers all 33 requests with assertions, grouped so a top-to-bottom run
+leaves the service healthy (break mode is enabled and recovered inside its own folder).
+
+1. Postman -> **Import** -> select `postman_collection.json` (and `postman_environment.json`).
+2. Set the `baseUrl` collection variable:
+   - local: `http://localhost:8080`
+   - deployed: `gcloud run services describe demo-project --region asia-south1 --format='value(status.url)'`
+3. **Run collection**. Expect 33/33 requests and 76/76 assertions green.
+
+Same thing headless, useful as a smoke test straight after a deploy:
+```bash
+URL=$(gcloud run services describe demo-project --region asia-south1 --format='value(status.url)')
+npx --yes newman@6 run postman_collection.json --env-var baseUrl=$URL
+```
+
+### Sizing
+
+The service is deliberately tiny. Set in `cloudbuild.yaml` as substitutions:
+
+| Substitution | Value | Why |
+|---|---|---|
+| `_MIN_INSTANCES` | `0` | Scales to zero - no cost when idle, at the price of a cold start |
+| `_MAX_INSTANCES` | `1` | Never more than one container, so cost is capped and the demo is predictable |
+| `_MEMORY` | `256Mi` | Node 22 + Express idles around 50-60 MB; 256Mi is the smallest safe headroom |
+| `_CPU` | `1` | See the note below |
+
+Override per-deploy without editing the file:
+```bash
+gcloud builds triggers run demo-project-main --region=global --branch=main \
+  --substitutions=_MEMORY=512Mi,_MAX_INSTANCES=2
+```
+
+> **Why CPU is 1 and not lower.** Cloud Run bills CPU only while a request is being handled, so with
+> `min-instances=0` a fractional CPU saves essentially nothing. What it does cost you is cold-start
+> time: below 1 vCPU the Node runtime can take long enough to boot that the revision trips
+> "container failed to start and listen on the port" - the single most common live-demo failure.
+> `--cpu=0.25` is supported if you want it; just expect slower first requests.
 
 Quick check against the deployed service:
 ```bash
