@@ -1,0 +1,63 @@
+# Main pipeline (push to main/master): test -> build -> push -> deploy.
+# Every environment value is an explicit substitution below, so this file can be
+# run as-is with:  gcloud builds submit --config cloudbuild.yaml
+# The trigger passes the same keys, which override these defaults.
+substitutions:
+  _PROJECT_ID: ayushraj-scaler-demo
+  _REGION: asia-south1
+  _AR_REPO: demo-project
+  _SERVICE_NAME: demo-project
+  _RUNTIME_SA: demo-project-run@ayushraj-scaler-demo.iam.gserviceaccount.com
+  _BREAK_HEALTH: 'false'
+
+steps:
+  - id: install
+    name: node:22-alpine
+    entrypoint: npm
+    args: ['ci']
+
+  - id: test
+    name: node:22-alpine
+    entrypoint: npm
+    args: ['test']
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_AR_REPO}/${_SERVICE_NAME}:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_AR_REPO}/${_SERVICE_NAME}:latest'
+      - '.'
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_AR_REPO}/${_SERVICE_NAME}'
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_SERVICE_NAME}'
+      - '--project=${_PROJECT_ID}'
+      - '--image=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_AR_REPO}/${_SERVICE_NAME}:${SHORT_SHA}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--service-account=${_RUNTIME_SA}'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--set-env-vars=BREAK_HEALTH=${_BREAK_HEALTH},APP_REGION=${_REGION}'
+      # No --tag, so the new revision takes 100% of traffic immediately.
+
+# Required when a build runs as a user-specified service account.
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1200s

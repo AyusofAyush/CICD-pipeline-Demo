@@ -1,0 +1,22 @@
+{
+  "name": "demo-project",
+  "version": "1.0.0",
+  "description": "Minimal Node.js app for a GCP Cloud Build -> Cloud Run CI/CD demo",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.17.0"
+  },
+  "license": "MIT",
+  "private": true
+}

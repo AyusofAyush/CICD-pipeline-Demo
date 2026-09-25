@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>demo-project</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --ink:#15181d; --muted:#616875;
+    --line:#e4e7ec; --ok:#0f7b42; --okbg:rgba(15,123,66,.12);
+    --bad:#b3261e; --badbg:rgba(179,38,30,.12);
+    --accent:#1a73e8; --code:#f2f4f7;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0e1015; --card:#181b21; --ink:#e9ebee; --muted:#98a0ac;
+           --line:#282d36; --ok:#5bd68a; --okbg:rgba(91,214,138,.14);
+           --bad:#f2837b; --badbg:rgba(242,131,123,.14);
+           --accent:#7cb2ff; --code:#11141a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,sans-serif;}
+  .wrap{max-width:900px;margin:0 auto;padding:0 16px 48px}
+
+  /* ---- hero ---- */
+  .hero{background:linear-gradient(135deg,#1a73e8 0%,#6b3fd4 100%);
+        color:#fff;padding:34px 16px 30px;margin-bottom:-26px}
+  .hero .in{max-width:900px;margin:0 auto}
+  .hero h1{margin:0;font-size:27px;letter-spacing:-.4px}
+  .hero p{margin:6px 0 0;opacity:.9;font-size:13.5px;max-width:60ch}
+  .badges{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .badge{background:rgba(255,255,255,.17);border:1px solid rgba(255,255,255,.28);
+         padding:4px 11px;border-radius:99px;font-size:12px;font-weight:600}
+
+  /* ---- cards ---- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .card h2{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;
+           color:var(--muted);margin:0 0 14px;font-weight:700;
+           display:flex;align-items:center;gap:10px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:14px}
+  .stat .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;
+           letter-spacing:.06em;font-weight:600}
+  .stat .v{font-size:18px;font-weight:650;margin-top:3px;word-break:break-all}
+  .pill{display:inline-block;padding:3px 10px;border-radius:99px;
+        font-size:11.5px;font-weight:700;letter-spacing:.02em}
+  .pill.ok{background:var(--okbg);color:var(--ok)}
+  .pill.bad{background:var(--badbg);color:var(--bad)}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px;
+       background:currentColor;animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* ---- items ---- */
+  ul{list-style:none;margin:0;padding:0}
+  li{display:flex;align-items:center;gap:10px;padding:10px 0;
+     border-bottom:1px solid var(--line)}
+  li:last-child{border-bottom:0}
+  li .name{flex:1}
+  li.done .name{text-decoration:line-through;color:var(--muted)}
+  .idtag{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted);
+         background:var(--code);padding:2px 6px;border-radius:5px}
+
+  /* ---- controls ---- */
+  button{font:inherit;font-size:13.5px;border:1px solid var(--line);background:transparent;
+         color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer;
+         transition:.12s border-color,.12s color}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{opacity:.9;color:#fff}
+  button.sm{padding:4px 10px;font-size:12px}
+  input{font:inherit;flex:1;padding:9px 12px;border:1px solid var(--line);
+        border-radius:8px;background:var(--bg);color:var(--ink)}
+  input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+
+  /* ---- endpoints ---- */
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+  .ep{display:flex;align-items:center;gap:11px;padding:9px 0;
+      border-bottom:1px solid var(--line)}
+  .ep:last-child{border-bottom:0}
+  .m{font-weight:800;font-size:10.5px;min-width:42px;text-align:center;
+     padding:3px 0;border-radius:5px;background:var(--code);color:var(--accent)}
+  .ep code{flex:1}
+  .ep .d{color:var(--muted);font-size:12px;display:none}
+  @media(min-width:640px){.ep .d{display:block;max-width:230px;text-align:right}}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:9px;
+      padding:13px;overflow:auto;margin:14px 0 0;font-size:12.5px;
+      font-family:ui-monospace,Menlo,monospace;max-height:260px;line-height:1.5}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:20px}
+  .hint{color:var(--muted);font-size:12.5px;margin:0}
+  button.err{border-color:var(--bad);color:var(--bad);font-variant-numeric:tabular-nums}
+  button.err:hover{background:var(--badbg)}
+  button.err.on{background:var(--bad);color:#fff}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="in">
+    <h1>demo-project</h1>
+    <p>A containerised Node service on Cloud Run. Every value on this page is
+       fetched live from this service's own HTTP API - nothing is baked into the HTML.</p>
+    <div class="badges">
+      <span class="badge">GitHub &rarr; Cloud Build</span>
+      <span class="badge">Artifact Registry</span>
+      <span class="badge">Cloud Run</span>
+      <span class="badge" id="bRev">revision: loading</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>Service health <span id="hp" class="pill">checking</span></h2>
+    <div class="grid">
+      <div class="stat"><div class="k">Version</div><div class="v" id="v">-</div></div>
+      <div class="stat"><div class="k">Revision</div><div class="v" id="r">-</div></div>
+      <div class="stat"><div class="k">Region</div><div class="v" id="rg">-</div></div>
+      <div class="stat"><div class="k">Uptime</div><div class="v" id="u">-</div></div>
+      <div class="stat"><div class="k">Node</div><div class="v" id="n">-</div></div>
+      <div class="stat"><div class="k">Env</div><div class="v" id="e">-</div></div>
+    </div>
+    <div class="row">
+      <button onclick="load()">Refresh now</button>
+      <button id="autoBtn" onclick="toggleAuto()">Auto-refresh: off</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Items <code>/api/items</code></h2>
+    <ul id="items"><li>loading...</li></ul>
+    <div class="row">
+      <input id="newItem" placeholder="New item name" onkeydown="if(event.key==='Enter')addItem()">
+      <button class="primary" onclick="addItem()">Add item</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Break the API <span id="bp" class="pill ok">healthy</span></h2>
+    <p class="hint">One-off: fire a single response with that status code.</p>
+    <div class="row" id="oneOff"></div>
+    <p class="hint" style="margin-top:16px">Sticky: keep every data endpoint failing until you recover.</p>
+    <div class="row" id="sticky"></div>
+    <div class="row">
+      <button class="primary" onclick="unbreak()">Recover (DELETE /api/break)</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Try the API <span class="pill ok" style="font-weight:600">live</span></h2>
+    <div id="eps"></div>
+    <pre id="out">Click "Run" on any endpoint to see the real JSON response.</pre>
+  </div>
+
+  <p class="foot">Container is stateless - items reset whenever a new revision starts.</p>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+const ENDPOINTS = [
+  ['GET',  '/health',          'ok, or 500 if BREAK_HEALTH'],
+  ['GET',  '/api/info',        'version, revision, uptime'],
+  ['GET',  '/api/items',       'list all items'],
+  ['GET',  '/api/items/1',     'one item, or 404'],
+  ['GET',  '/api/items/999',   'expect 404'],
+  ['GET',  '/api/echo?msg=hi', 'echoes the query string'],
+  ['GET',  '/api/error',       'always 500 - for the Logs tab'],
+  ['GET',  '/api/status/403',  'simulate any status code'],
+  ['GET',  '/api/break',       'current break state'],
+  ['GET',  '/nope',            'expect 404 fallback']
+];
+
+function renderEndpoints() {
+  const box = $('eps');
+  for (const [method, path, desc] of ENDPOINTS) {
+    const row = document.createElement('div');
+    row.className = 'ep';
+
+    const m = document.createElement('span');
+    m.className = 'm';
+    m.textContent = method;
+
+    const c = document.createElement('code');
+    c.textContent = path;
+
+    const d = document.createElement('span');
+    d.className = 'd';
+    d.textContent = desc;
+
+    const b = document.createElement('button');
+    b.className = 'sm';
+    b.textContent = 'Run';
+    b.onclick = () => run(method, path);
+
+    row.append(m, c, d, b);
+    box.append(row);
+  }
+}
+
+async function run(method, path) {
+  const out = $('out');
+  out.textContent = method + ' ' + path + '\nrunning...';
+  const t0 = performance.now();
+  try {
+    const res = await fetch(path, { method });
+    const ms = Math.round(performance.now() - t0);
+    let body;
+    try { body = JSON.stringify(await res.json(), null, 2); }
+    catch (e) { body = '(no JSON body)'; }
+    out.textContent =
+      method + ' ' + path + '\n' +
+      'HTTP ' + res.status + ' ' + res.statusText + '  -  ' + ms + ' ms\n\n' + body;
+  } catch (err) {
+    out.textContent = method + ' ' + path + '\nrequest failed: ' + err.message;
+  }
+}
+
+async function load() {
+  try {
+    const h = await fetch('/health');
+    await h.json();
+    $('hp').innerHTML = '<span class="dot"></span>' + (h.ok ? 'healthy' : 'unhealthy');
+    $('hp').className = 'pill ' + (h.ok ? 'ok' : 'bad');
+  } catch (err) {
+    $('hp').textContent = 'unreachable';
+    $('hp').className = 'pill bad';
+  }
+
+  try {
+    const i = await (await fetch('/api/info')).json();
+    $('v').textContent  = i.version;
+    $('r').textContent  = i.revision;
+    $('rg').textContent = i.region;
+    $('u').textContent  = i.uptimeSeconds + 's';
+    $('n').textContent  = i.node;
+    $('e').textContent  = i.env;
+    $('bRev').textContent = 'revision: ' + i.revision;
+  } catch (err) { /* keep placeholders */ }
+
+  loadItems();
+}
+
+async function loadItems() {
+  const ul = $('items');
+  try {
+    const d = await (await fetch('/api/items')).json();
+    ul.innerHTML = '';
+    if (!d.items.length) { ul.innerHTML = '<li>no items yet</li>'; return; }
+    for (const it of d.items) {
+      const li = document.createElement('li');
+      if (it.done) li.className = 'done';
+
+      const tag = document.createElement('span');
+      tag.className = 'idtag';
+      tag.textContent = '#' + it.id;
+
+      const s = document.createElement('span');
+      s.className = 'name';
+      s.textContent = it.name;
+
+      const b = document.createElement('button');
+      b.className = 'sm';
+      b.textContent = 'Delete';
+      b.onclick = () => del(it.id);
+
+      li.append(tag, s, b);
+      ul.append(li);
+    }
+  } catch (err) {
+    ul.innerHTML = '<li>failed to load</li>';
+  }
+}
+
+async function addItem() {
+  const el = $('newItem');
+  const name = el.value.trim();
+  if (!name) return;
+  await fetch('/api/items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+  el.value = '';
+  loadItems();
+}
+
+async function del(id) {
+  await fetch('/api/items/' + id, { method: 'DELETE' });
+  loadItems();
+}
+
+let timer = null;
+function toggleAuto() {
+  if (timer) {
+    clearInterval(timer); timer = null;
+    $('autoBtn').textContent = 'Auto-refresh: off';
+  } else {
+    timer = setInterval(load, 5000);
+    $('autoBtn').textContent = 'Auto-refresh: on (5s)';
+  }
+}
+
+const CODES = [400, 401, 403, 404, 409, 429, 500, 502, 503, 504];
+
+function renderErrorControls() {
+  const one = document.getElementById('oneOff');
+  const st  = document.getElementById('sticky');
+  for (const c of CODES) {
+    const a = document.createElement('button');
+    a.className = 'err sm';
+    a.textContent = c;
+    a.title = 'GET /api/status/' + c;
+    a.onclick = () => run('GET', '/api/status/' + c);
+    one.append(a);
+
+    const b = document.createElement('button');
+    b.className = 'err sm';
+    b.id = 'stick' + c;
+    b.textContent = c;
+    b.title = 'POST /api/break {code:' + c + '}';
+    b.onclick = () => doBreak(c);
+    st.append(b);
+  }
+}
+
+async function doBreak(code) {
+  const out = document.getElementById('out');
+  const res = await fetch('/api/break', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  });
+  out.textContent = 'POST /api/break {"code":' + code + '}\nHTTP ' + res.status +
+                    '\n\n' + JSON.stringify(await res.json(), null, 2);
+  refreshBreak();
+  loadItems();
+}
+
+async function unbreak() {
+  const out = document.getElementById('out');
+  const res = await fetch('/api/break', { method: 'DELETE' });
+  out.textContent = 'DELETE /api/break\nHTTP ' + res.status +
+                    '\n\n' + JSON.stringify(await res.json(), null, 2);
+  refreshBreak();
+  load();
+}
+
+async function refreshBreak() {
+  try {
+    const b = await (await fetch('/api/break')).json();
+    const pill = document.getElementById('bp');
+    pill.textContent = b.broken ? ('broken: ' + b.code) : 'healthy';
+    pill.className = 'pill ' + (b.broken ? 'bad' : 'ok');
+    for (const c of CODES) {
+      const el = document.getElementById('stick' + c);
+      if (el) el.classList.toggle('on', b.broken && b.code === c);
+    }
+  } catch (err) { /* ignore */ }
+}
+
+renderEndpoints();
+renderErrorControls();
+refreshBreak();
+load();
+</script>
+</body>
+</html>
