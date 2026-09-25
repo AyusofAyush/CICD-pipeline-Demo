@@ -9,6 +9,11 @@ substitutions:
   _SERVICE_NAME: demo-project
   _RUNTIME_SA: demo-project-run@ayushraj-scaler-demo.iam.gserviceaccount.com
   _BREAK_HEALTH: 'false'
+  # --- sizing: scale to zero, never more than one instance ---
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '1'
+  _MEMORY: 256Mi
+  _CPU: '1'
 
 steps:
   - id: install
@@ -52,6 +57,12 @@ steps:
       - '--service-account=${_RUNTIME_SA}'
       - '--allow-unauthenticated'
       - '--port=8080'
+      - '--min-instances=${_MIN_INSTANCES}'
+      - '--max-instances=${_MAX_INSTANCES}'
+      - '--memory=${_MEMORY}'
+      - '--cpu=${_CPU}'
+      - '--concurrency=80'
+      - '--timeout=60s'
       - '--set-env-vars=BREAK_HEALTH=${_BREAK_HEALTH},APP_REGION=${_REGION}'
       # No --tag, so the new revision takes 100% of traffic immediately.
 
