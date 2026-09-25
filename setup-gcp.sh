@@ -114,7 +114,7 @@ cat <<EOF
 gcloud cannot install the Cloud Build GitHub App for you. Do this now:
 
   1. Open: https://console.cloud.google.com/cloud-build/triggers?project=${PROJECT_ID}
-  2. Set the region selector to: ${REGION}   (or 'global')
+  2. Set the region selector to: global   (1st-gen GitHub App connections are global)
   3. Click  CONNECT REPOSITORY
   4. Source: "GitHub (Cloud Build GitHub App)"  -> Continue
   5. Authenticate, then install/authorize the app on: ${GITHUB_OWNER}/${GITHUB_REPO}
@@ -128,16 +128,22 @@ read -r -p "Repository connected? [y/N] " reply
 # ---------------------------------------------------------------- triggers ----
 bold "[5/5] Creating Cloud Build triggers"
 
+# The 1st-gen GitHub App stores its repo mapping in 'global', not in a region.
+# Creating a trigger in ${REGION} against that mapping fails with
+# "FAILED_PRECONDITION: Repository mapping does not exist".
+# The build still deploys to Cloud Run in ${REGION}; only the trigger is global.
+TRIGGER_REGION="${TRIGGER_REGION:-global}"
+
 SUBS="_REGION=${REGION},_AR_REPO=${AR_REPO},_SERVICE_NAME=${SERVICE_NAME},_RUNTIME_SA=${RUNTIME_SA_EMAIL},_BREAK_HEALTH=false"
 
 # Trigger 1: pull requests to main -> tests only, reported as a PR status check.
-if gcloud builds triggers describe "${SERVICE_NAME}-pr" --region="${REGION}" \
+if gcloud builds triggers describe "${SERVICE_NAME}-pr" --region="${TRIGGER_REGION}" \
      --project "${PROJECT_ID}" >/dev/null 2>&1; then
   echo "  trigger ${SERVICE_NAME}-pr already exists - skipping"
 else
   gcloud builds triggers create github \
     --name="${SERVICE_NAME}-pr" \
-    --region="${REGION}" \
+    --region="${TRIGGER_REGION}" \
     --repo-owner="${GITHUB_OWNER}" \
     --repo-name="${GITHUB_REPO}" \
     --pull-request-pattern='.*' \
@@ -149,13 +155,13 @@ else
 fi
 
 # Trigger 2: push to main -> test, build, push, deploy.
-if gcloud builds triggers describe "${SERVICE_NAME}-main" --region="${REGION}" \
+if gcloud builds triggers describe "${SERVICE_NAME}-main" --region="${TRIGGER_REGION}" \
      --project "${PROJECT_ID}" >/dev/null 2>&1; then
   echo "  trigger ${SERVICE_NAME}-main already exists - skipping"
 else
   gcloud builds triggers create github \
     --name="${SERVICE_NAME}-main" \
-    --region="${REGION}" \
+    --region="${TRIGGER_REGION}" \
     --repo-owner="${GITHUB_OWNER}" \
     --repo-name="${GITHUB_REPO}" \
     --branch-pattern='^(main|master)$' \

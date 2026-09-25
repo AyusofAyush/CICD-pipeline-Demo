@@ -174,9 +174,14 @@ Return to the terminal and answer `y`.
 
 **Step 5 — the script creates both triggers** and prints the Cloud Build History URL.
 
-**Step 6 — verify.**
+> **Note on regions:** the Cloud Build GitHub App (1st gen) connects repos in **`global`**, so both
+> triggers are created with `--region=global`. Artifact Registry and Cloud Run stay in `asia-south1`.
+> Mixing these up produces `FAILED_PRECONDITION: Repository mapping does not exist` - see
+> Troubleshooting C.
+
+**Step 6 - verify.**
 ```bash
-gcloud builds triggers list --region=asia-south1 --format='table(name,github.name,filename)'
+gcloud builds triggers list --region=global --format='table(name,github.name,filename)'
 ```
 You should see `demo-project-pr` and `demo-project-main`.
 
@@ -303,7 +308,7 @@ SA than you think.
 
 ```bash
 # Confirm which SA the trigger uses
-gcloud builds triggers describe demo-project-main --region=asia-south1 --format='value(serviceAccount)'
+gcloud builds triggers describe demo-project-main --region=global --format='value(serviceAccount)'
 
 # Re-grant
 gcloud projects add-iam-policy-binding $PROJECT_ID \
@@ -339,21 +344,27 @@ A failed revision never receives traffic, so the previous revision keeps serving
 
 1. **Is the connection still there?** Console → Cloud Build → Triggers. If the repo shows as
    disconnected, the GitHub App was removed or the token expired — reconnect (Step 4).
-2. **Region mismatch.** Triggers are regional. A trigger in `asia-south1` won't show under `global`.
-   Always pass `--region`:
+2. **Region mismatch - the one that actually bites.** Triggers are regional, but a **1st-gen
+   GitHub App connection stores its repo mapping in `global`**. Creating a trigger in a region
+   against that mapping fails with:
+
+   > `FAILED_PRECONDITION: Repository mapping does not exist.`
+
+   The fix is to create and list the triggers with `--region=global`. The build still deploys to
+   Cloud Run in `asia-south1` - only the trigger itself is global. Always pass `--region`:
    ```bash
-   gcloud builds triggers list --region=asia-south1
+   gcloud builds triggers list --region=global
    ```
 3. **Branch pattern mismatch.** The push trigger matches `^(main|master)$` and the PR trigger fires
    on a PR into *any* base branch. If you renamed your default branch to something else, update the
    pattern. Check with:
    ```bash
-   gcloud builds triggers describe demo-project-main --region=asia-south1 \
+   gcloud builds triggers describe demo-project-main --region=global \
      --format='value(github.push.branch, github.pullRequest.branch)'
    ```
 4. **Force it while you debug** (works regardless of webhooks):
    ```bash
-   gcloud builds triggers run demo-project-main --region=asia-south1 --branch=main
+   gcloud builds triggers run demo-project-main --region=global --branch=main
    ```
 5. **Check GitHub's side:** repo → Settings → GitHub Apps → Google Cloud Build → *Recent Deliveries*
    shows whether the webhook was sent and what GCP answered.
@@ -370,8 +381,8 @@ gcloud run services delete demo-project --region asia-south1 --quiet
 gcloud artifacts repositories delete demo-project --location asia-south1 --quiet
 
 # Triggers
-gcloud builds triggers delete demo-project-main --region=asia-south1 --quiet
-gcloud builds triggers delete demo-project-pr   --region=asia-south1 --quiet
+gcloud builds triggers delete demo-project-main --region=global --quiet
+gcloud builds triggers delete demo-project-pr   --region=global --quiet
 
 # Service accounts
 gcloud iam service-accounts delete demo-project-build@$PROJECT_ID.iam.gserviceaccount.com --quiet
